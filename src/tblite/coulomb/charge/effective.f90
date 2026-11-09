@@ -546,11 +546,8 @@ subroutine get_pair_derivs(self, mol, cache, iat, jat, dG, dS)
    !> Strain derivatives, indexed by (:, :, jsh, ish), only evaluated for periodic systems
    real(wp), intent(out) :: dS(:, :, :, :)
 
-   logical :: ko
-
-   ko = abs(self%gexp-2.0_wp) < eps
    if (any(mol%periodic)) then
-      if (ko) then
+      if (abs(self%gexp-2.0_wp) < eps) then
          call get_damat_pair_ko_3d(mol, self%nshell, self%hubbard, cache%alpha, &
             & cache%charge_ewald, iat, jat, dG, dS)
       else
@@ -558,11 +555,7 @@ subroutine get_pair_derivs(self, mol, cache, iat, jat, dG, dS)
             & cache%alpha, cache%charge_ewald, iat, jat, dG, dS)
       end if
    else
-      if (ko) then
-         call get_damat_pair_ko_0d(mol, self%nshell, self%hubbard, iat, jat, dG)
-      else
-         call get_damat_pair_0d(mol, self%nshell, self%hubbard, self%gexp, iat, jat, dG)
-      end if
+      call get_damat_pair_0d(mol, self%nshell, self%hubbard, self%gexp, iat, jat, dG)
    end if
 end subroutine get_pair_derivs
 
@@ -602,38 +595,6 @@ subroutine get_damat_pair_0d(mol, nshell, hubbard, gexp, iat, jat, dG)
       end do
    end do
 end subroutine get_damat_pair_0d
-
-
-!> Coulomb matrix derivatives of one atom pair in a finite system with the Klopman-Ohno kernel
-subroutine get_damat_pair_ko_0d(mol, nshell, hubbard, iat, jat, dG)
-   !> Molecular structure data
-   type(structure_type), intent(in) :: mol
-   !> Number of shells for each atom
-   integer, intent(in) :: nshell(:)
-   !> Hubbard parameter for each shell and species
-   real(wp), intent(in) :: hubbard(:, :, :, :)
-   !> First atom
-   integer, intent(in) :: iat
-   !> Second atom
-   integer, intent(in) :: jat
-   !> Derivatives with respect to the position of the first atom
-   real(wp), intent(out) :: dG(:, :, :)
-
-   integer :: izp, jzp, ish, jsh
-   real(wp) :: vec(3), r2, gam, dtmp
-
-   izp = mol%id(iat)
-   jzp = mol%id(jat)
-   vec = mol%xyz(:, iat) - mol%xyz(:, jat)
-   r2 = dot_product(vec, vec)
-   do ish = 1, nshell(iat)
-      do jsh = 1, nshell(jat)
-         gam = hubbard(jsh, ish, jzp, izp)
-         dtmp = 1.0_wp/(r2 + 1.0_wp/(gam*gam))
-         dG(:, jsh, ish) = -dtmp*sqrt(dtmp)*vec
-      end do
-   end do
-end subroutine get_damat_pair_ko_0d
 
 
 !> Coulomb matrix derivatives of one atom pair in a 3D system using Wigner-Seitz images
